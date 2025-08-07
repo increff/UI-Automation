@@ -1,0 +1,3 @@
+[submodule "claude-code-requirements-builder"]
+	path = claude-code-requirements-builder
+	url = https://github.com/rizethereum/claude-code-requirements-builder
