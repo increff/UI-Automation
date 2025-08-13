@@ -13,10 +13,10 @@ Goal: Take the input PRD from `@knowledge-prd-input` and, using `@knowledge-prd-
    - Executive summary and scope boundaries
    - Normalised requirements with acceptance criteria
    - Open questions and assumptions
-4. Use `@knowledge-coding-guidelines.mdc` and `@knowledge-lovable.mdc` to generate the following three UI outputs:
-   - UI Output 1: Component and state catalogue (all screens, states, and interactions) aligned to Lovable patterns.
-   - UI Output 2: Implementation scaffolds (component/file skeletons) conforming to coding guidelines.
-   - UI Output 3: Preview harness (e.g., Storybook stories or equivalent) to review states and interactions.
+4. Use `@knowledge-coding-guidelines.mdc` and `@knowledge-lovable.mdc` to generate the following three UI outputs phases:
+   - UI Output phase 1: Component and state catalogue (all screens, states, and interactions) aligned to Lovable patterns.
+   - UI Output phase 2: Implementation scaffolds (component/file skeletons) conforming to coding guidelines.
+   - UI Output phase 3: Preview harness (e.g., Storybook stories or equivalent) to review states and interactions.
 
 ### Completion Criteria
 - Improved PRD is generated and demonstrably smaller in token footprint while retaining fidelity to `input/prd1.txt`.
