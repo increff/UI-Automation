@@ -53,8 +53,18 @@ export default function App() {
       },
       complete: () => {
         const name = file.name.replace(/\.[^.]+$/, '')
-        const hdrs = headers || []
+        let hdrs = headers || []
         const warnings: string[] = []
+        // If headers missing or too short, synthesise from longest row
+        const maxLen = allRows.reduce((m, r) => Math.max(m, r.length), hdrs.length)
+        if (hdrs.length === 0) {
+          hdrs = Array.from({ length: maxLen }, (_, i) => `Column ${i + 1}`)
+          warnings.push('Header row not detected; generated generic column names.')
+        } else if (maxLen > hdrs.length) {
+          const add = maxLen - hdrs.length
+          for (let i = 0; i < add; i++) hdrs.push(`Column ${hdrs.length + 1}`)
+          warnings.push(`Detected rows with more fields than headers; added ${add} generic column name(s).`)
+        }
         // Basic ragged row warnings (limit to first 5 to avoid noise)
         const expected = hdrs.length
         let warned = 0
@@ -128,8 +138,32 @@ export default function App() {
       </header>
       <main style={{ flex: 1 }}>
         {active ? (
-          <div className="ag-theme-quartz" style={{ height: '100%', width: '100%' }}>
+          <div className="ag-theme-quartz" style={{ height: '100%', width: '100%', background: '#fff', color: '#000' }}>
             <AgGridReact columnDefs={columnDefs} rowData={rowData} getRowId={(p) => p.data._id} rowSelection="single" animateRows />
+            <div style={{ height: 16 }} />
+            <div style={{ padding: 12 }}>
+              <strong>Preview (first 50 rows)</strong>
+              <div style={{ overflow: 'auto', border: '1px solid #eee', marginTop: 6 }}>
+                <table style={{ borderCollapse: 'collapse', minWidth: 600 }}>
+                  <thead>
+                    <tr>
+                      {active.headers.map((h, i) => (
+                        <th key={i} style={{ border: '1px solid #eee', padding: '6px 8px', textAlign: 'left', background: '#fafafa' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {active.rows.slice(0, 50).map((r, ri) => (
+                      <tr key={ri}>
+                        {active.headers.map((_, ci) => (
+                          <td key={ci} style={{ border: '1px solid #eee', padding: '6px 8px' }}>{r[ci] ?? ''}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         ) : (
           <div style={{ height: '100%', display: 'grid', placeItems: 'center', color: '#666' }}>Drop or select CSV files to preview</div>
