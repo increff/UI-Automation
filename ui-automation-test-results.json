@@ -1,0 +1,131 @@
+{
+  "prd_type": "UI Automation Framework",
+  "static_system": {
+    "questions": [
+      "Will users interact with this feature through a visual interface?",
+      "Does this feature need to work on mobile devices?",
+      "Will this feature handle sensitive or private user data?",
+      "Do users currently have a workaround for this problem?",
+      "Will this feature need to work offline?"
+    ],
+    "extraction": {
+      "features": [
+        [
+          "QA Engineer",
+          "create test scripts using a simple, readable syntax that supports multiple programming languages (Python, JavaScript, Java)"
+        ],
+        [
+          "QA Engineer",
+          "record UI interactions and automatically generate test scripts to reduce manual coding time"
+        ],
+        [
+          "QA Engineer",
+          "write test scripts once and run them on multiple platforms (Web, iOS, Android, Windows, macOS) without modification"
+        ],
+        [
+          "QA Engineer",
+          "test responsive web applications across different screen sizes and orientations"
+        ],
+        [
+          "QA Engineer",
+          "use intelligent element locators that automatically adapt to UI changes and provide fallback strategies when elements are modified"
+        ],
+        [
+          "QA Engineer",
+          "maintain a centralized repository of element locators that can be shared across test scripts"
+        ],
+        [
+          "QA Engineer",
+          "create and manage test data sets that can be reused across different test scenarios"
+        ],
+        [
+          "QA Engineer",
+          "generate dynamic test data for edge cases and boundary testing"
+        ],
+        [
+          "DevOps Engineer",
+          "run tests in parallel across multiple browsers and devices to reduce execution time"
+        ],
+        [
+          "DevOps Engineer",
+          "distribute test execution across multiple machines for scalability"
+        ],
+        [
+          "Product Manager",
+          "view comprehensive test reports with screenshots, videos, and detailed failure analysis"
+        ],
+        [
+          "Product Manager",
+          "track test coverage metrics and identify areas that need more testing"
+        ],
+        [
+          "DevOps Engineer",
+          "integrate automated tests into existing CI/CD pipelines with configurable triggers"
+        ],
+        [
+          "DevOps Engineer",
+          "receive notifications when tests fail and automatically retry flaky tests"
+        ],
+        [
+          "QA Engineer",
+          "perform visual regression testing to detect UI changes that might break the user experience"
+        ],
+        [
+          "QA Engineer",
+          "compare screenshots across different browsers and devices to ensure consistency"
+        ],
+        [
+          "QA Engineer",
+          "automatically test for accessibility compliance (WCAG 2"
+        ],
+        [
+          "QA Engineer",
+          "generate accessibility reports for compliance documentation"
+        ]
+      ],
+      "user_roles": [
+        [
+          "Document",
+          "Cross-Platform UI Test Automation Framework\n\n1"
+        ],
+        [
+          "Engineer",
+          "Creates and maintains automated test scripts\nDevOps Engineer: Integrates tests into CI/CD pipelines\nProduct Manager: Reviews test results and coverage reports\nUI Developer: Provides test data and test environment access\n\n4"
+        ]
+      ],
+      "workflows": [
+        "create test scripts using a simple, readable syntax that supports multiple programming languages (Python, JavaScript, Java)",
+        "record UI interactions and automatically generate test scripts to reduce manual coding time",
+        "write test scripts once and run them on multiple platforms (Web, iOS, Android, Windows, macOS) without modification",
+        "test responsive web applications across different screen sizes and orientations",
+        "use intelligent element locators that automatically adapt to UI changes and provide fallback strategies when elements are modified",
+        "maintain a centralized repository of element locators that can be shared across test scripts",
+        "create and manage test data sets that can be reused across different test scenarios",
+        "generate dynamic test data for edge cases and boundary testing",
+        "run tests in parallel across multiple browsers and devices to reduce execution time",
+        "distribute test execution across multiple machines for scalability",
+        "view comprehensive test reports with screenshots, videos, and detailed failure analysis",
+        "track test coverage metrics and identify areas that need more testing",
+        "integrate automated tests into existing CI/CD pipelines with configurable triggers",
+        "receive notifications when tests fail and automatically retry flaky tests",
+        "perform visual regression testing to detect UI changes that might break the user experience",
+        "compare screenshots across different browsers and devices to ensure consistency",
+        "automatically test for accessibility compliance (WCAG 2",
+        "generate accessibility reports for compliance documentation"
+      ]
+    }
+  },
+  "llm_system": {
+    "questions": [
+      "Which CI/CD platforms should the framework integrate with?",
+      "What is the expected number of concurrent test executions?",
+      "Should the framework support encrypted test data storage?",
+      "Which mobile platforms should be prioritized for testing?",
+      "Should the framework support automated WCAG 2.1 compliance testing?",
+      "What visual comparison algorithms should be supported?",
+      "Should the framework support AI-powered element detection?",
+      "What types of test data generation should be supported?"
+    ],
+    "improvement": "8x more questions, context-specific"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "id": "employee-expense-portal",
+  "started": "2025-01-27T15:30:00Z",
+  "lastUpdated": "2025-01-27T15:30:00Z",
+  "status": "active",
+  "phase": "discovery",
+  "progress": {
+    "discovery": { "answered": 0, "total": 5 },
+    "detail": { "answered": 0, "total": 0 }
+  },
+  "contextFiles": ["my_prd.txt"],
+  "relatedFeatures": [],
+  "description": "Employee Expense Reporting Portal - centralized web portal for expense submissions and approvals"
+}
