@@ -1,0 +1,16 @@
+---
+description: Lovable Design Guidelines (auto-include)
+globs:
+  - "Lovable/**/*.md"
+  - "Lovable/**/*.txt"
+alwaysApply: true
+---
+
+## Lovable Design Guidelines
+
+Treat the documents under `Lovable/` as authoritative UI/UX design guidelines for tone, UX patterns, and visual/system conventions.
+
+- Consult these guidelines when making any UI, UX, copy, or interaction decisions.
+- If guidelines conflict with acceptance criteria in the PRD (`input/prd1.txt`), follow the PRD and flag the discrepancy.
+- Prefer consistency with Lovable patterns when choosing components, naming, and microcopy.
+

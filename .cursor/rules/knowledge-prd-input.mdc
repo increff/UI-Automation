@@ -1,0 +1,15 @@
+---
+description: PRD Input Knowledge (auto-include)
+globs:
+  - "input/prd1.txt"
+alwaysApply: true
+---
+
+## PRD Input Knowledge
+
+Treat `input/prd1.txt` as the canonical PRD for this project when present.
+
+- Prefer this PRD for product requirements and acceptance criteria.
+- Cross-reference with `cursor-ai-prd-workflow/**/*.md` for process and structure.
+- If conflicts arise between ad-hoc instructions and the PRD, ask for clarification and propose a change via the PRD workflow prompts.
+

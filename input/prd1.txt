@@ -1,0 +1,501 @@
+PRD: Multi-CSV Sheet Viewer & Inline Editor (Client‑Side Only)
+==============================================================
+
+Doc owner: Shubham Omar  
+Author: AI agent (Cursor‑ready)  
+Version: v1.0  
+Date: 2025‑08‑13
+
+  
+
+0) Summary
+----------
+
+Build a single‑page web UI that lets users attach multiple CSV files, each treated as an Excel‑like sheet tab, parse them entirely in the browser, and present a virtualized, editable table with column reordering, sorting, filtering, and large‑file safeguards. Headers must come exactly from the file. Edits are tracked as non‑destructive patches and can be exported back to CSV (per sheet or as a ZIP of all).
+
+  
+
+1) Goals & Non‑Goals
+--------------------
+
+ 1.1 Goals
+
+   Attach multiple CSVs and view as tabs (Sheet 1, Sheet 2 … = per file).
+   Client‑side parsing only; no network upload; headers taken from the file.
+   Virtualized, responsive grid with inline editing, sortable & filterable columns, and drag‑reorderable headers.
+   Handle large files (millions of rows), empty lines, ragged rows; show parse progress.
+   Persist user layout (column order/visibility) per file hash; Undo/Redo for edits.
+   Export: per‑sheet CSV and "Download all" (ZIP).
+
+ 1.2 Non‑Goals (v1)
+
+   No server APIs or cloud persistence.
+   No cross‑sheet joins/joins to external data.
+   No formula engine; cells are raw strings in v1.
+   No collaborative editing/multi‑user presence.
+
+  
+
+2) Users & Top Scenarios
+------------------------
+
+   Analyst/Engineer: Quickly open several CSV extracts, inspect, make small fixes, reorder columns, filter down, and export cleaned files.
+   QA/Support: Validate CSV formatting issues (quotes, missing fields), patch a few cells, and re‑deliver.
+
+Key scenarios
+
+1.  Drag‑drop 3 CSVs → each appears as a tab with preview in <3 seconds for first 50k rows.
+2.  Reorder columns via drag, sort Col A desc, filter Col B contains "IN" → preview updates instantly.
+3.  Edit a few cells, Undo/Redo, export the active sheet; or Export All as ZIP.
+4.  Open a 1.2M‑row CSV → app switches to Performance Mode (IndexedDB-backed), keeps UI responsive.
+
+  
+
+3) Scope (v1 / v1.1 / v2)
+-------------------------
+
+   v1 (this PRD): Multi‑file, client‑side parse, virtualized grid, edit patches, column reorder/hide, single/multi sort, text/numeric filters, skip empty lines, IndexedDB storage for large files, export CSV/ZIP, warnings panel, a11y + keyboard nav.
+   v1.1 (stretch behind feature flag): Type inference (numeric/date) for better filter UIs; frozen columns; multi‑cell paste; DuckDB‑WASM for heavy filters/sorts on huge data.
+   v2 (future): Validation rules, row add/delete, merge sheets, computed columns, cloud save.
+
+  
+
+4) Functional Requirements
+--------------------------
+
+ 4.1 File Attach & Tabs
+
+   Accept multiple files via drag‑drop and file picker; show each file as a sheet tab named after the file (without extension).
+   Per‑file parse options (editable in a side panel):
+       Header row index (default 1).
+       Delimiter auto‑detect (comma, semicolon, tab, pipe) with manual override.
+       Encoding auto‑detect (UTF‑8 + BOM awareness) with manual override.
+       Skip empty lines (default on).
+   Show parse progress (rows read, elapsed time) and warnings summary.
+
+ 4.2 Table (Grid)
+
+   Headers must be taken as‑is from the file; do not auto‑rename. Internal keys may dedupe silently (name, name2, …), but display text must match the file.
+   Virtualization: row virtualization always; column virtualization if column count > 200.
+   Inline editing: enter/blur to commit; Esc to cancel; Tab/Shift+Tab to move; per‑cell dirty indicator.
+   Column operations: drag reorder, resize, hide/show, sort (asc/desc), multi‑sort with Shift.
+   Filtering:
+       Text: contains/equals/starts‑with (case toggle).
+       Numeric: =, ≠, >, ≥, <, ≤, between (string columns treated textually if no type info).
+   Search box: quick in‑table filter across visible columns.
+   Status bar: rows/cols, performance mode state, memory estimate, warnings count.
+
+ 4.3 Large Files & Storage
+
+   Parser runs in Web Worker with streaming/chunked mode; progressive preview: first 50k rows rendered ASAP, then backfill.
+   If file size > 200MB or > 2,000,000 rows, auto‑switch to IndexedDB persistence (Dexie) to avoid RAM blowup.
+   Maintain a rowId that survives filtering/sorting and maps back to original index.
+
+ 4.4 Data Integrity & Edge Cases
+
+   Empty lines: ignore on parse; retain original row numbers using rowId.
+   Ragged rows: pad missing trailing fields with empty strings; extra fields beyond detected header count → warning.
+   Quotes & embedded newlines: supported; show warning for unterminated quotes with row snippet.
+   Duplicate headers: allowed; UI displays as provided; internal addressing deduped (append 2, 3 …).
+
+ 4.5 Editing & Undo/Redo
+
+   Maintain an edit patch map per sheet: { rowId -> { colIdx -> newValue } }.
+   Undo/Redo stacks per sheet (min 100 steps).
+   Edits should not mutate the original parsed store until export; UI reflects overlay of original + patches.
+
+ 4.6 Export
+
+   Export Sheet: generate CSV honoring current column order & visibility, with edits applied.
+   Export All: ZIP containing fileName-edited.csv per sheet that has edits; untouched sheets keep original name.
+   Normalized line endings to \n unless user picks \r\n.
+
+ 4.7 Persistence
+
+   Persist per‑sheet column order, visibility, sorts, filters, and grid density in localStorage using a stable file hash (name + size + lastModified).
+   Provide Reset Layout.
+
+ 4.8 Accessibility & Keyboard
+
+   Grid usable via keyboard: arrows, Home/End, PageUp/Down, Enter to edit, Esc to cancel, Tab to move.
+   Menu buttons navigable; visible focus ring.
+   Contrast compliant; aria labels on controls.
+
+  
+
+5) Non‑Functional Requirements
+------------------------------
+
+   Performance: First 50k rows visible < 3s on a 8‑core laptop; scrolling 60fps on typical datasets; sort/filter on 1M rows < 2s in Performance Mode.
+   Memory: Keep JS heap under 1.5GB for 1M×50 dataset by using IndexedDB storage; avoid full copies.
+   Security/Privacy: 100% local processing; no network calls. "Clear all data" wipes IndexedDB + localStorage.
+   Browser Support: Latest Chrome, Edge, Safari; graceful warning for unsupported browsers.
+
+  
+
+6) Architecture
+---------------
+
+ 6.1 Tech Stack (v1)
+
+   React 18 + TypeScript, Vite.
+   AG Grid Community for the table (row virtualization, column move/sort/filter, inline editing via cell editors).
+   Papa Parse (worker mode) for streaming CSV parse; delimiter & encoding detection.
+   Dexie (IndexedDB) for large datasets.
+   JSZip for Export All.
+   Optional (flagged): DuckDB‑WASM for heavy multi‑column filtering/sorting on very large data.
+
+> Rationale: AG Grid Community accelerates delivery with built‑ins for column ops. Papa Parse is mature for CSV streaming. Dexie simplifies IndexedDB.
+
+ 6.2 High‑Level Diagram
+
+   UI Thread (React + AG Grid)
+       Sheet Tabs
+       Toolbar (search, show/hide, reset, edit toggle, export)
+       AG Grid (data source adapter over IndexedDB/memory + patches overlay)
+       Status Bar (progress, warnings)
+   Worker Thread (Parser)
+       Reads file in chunks → emits rows[] with rowId and raw string cells
+       Delimiter/encoding detection → parse config
+       Progress + warnings
+   Storage
+       Memory store for small files
+       Dexie tables for large files (chunked row blocks)
+
+ 6.3 Data Model (TypeScript)
+
+    export type SheetId = string; // hash(name,size,lastModified)
+    export type RowId = number;   // 0..N-1 stable
+    export type Cell = string;    // keep raw strings
+    
+    export interface SheetMeta {
+      id: SheetId;
+      name: string;                 // file name sans ext
+      headers: string[];            // as in file
+      columnOrder: number[];        // permutation indices
+      hidden: boolean[];            // per-column visibility
+      stats: { rows: number; cols: number; };
+      warnings: string[];           // non-blocking
+      storage: 'memory'|'indexeddb';
+    }
+    
+    export type PatchMap = Map<RowId, Map<number, Cell>>; // rowId -> (colIdx -> value)
+    
+    export interface ViewState {    // persisted in localStorage per SheetId
+      sorts: Array<{col: number; dir: 'asc'|'desc'}>;
+      filters: Record<number, FilterClause[]>; // colIdx -> clauses
+      density: 'compact'|'cozy'|'comfortable';
+    }
+    
+
+ 6.4 Parser Worker Protocol
+
+    // UI -> Worker
+    { type: 'PARSESTART', sheetId, file, options: {
+        headerRowIndex: number, delimiter?: string, encoding?: string,
+        skipEmptyLines: boolean
+    }}
+    { type: 'CANCEL', sheetId }
+    
+    // Worker -> UI
+    { type: 'META', sheetId, headers: string[], detected: { delimiter, encoding } }
+    { type: 'CHUNK', sheetId, rows: string[][], startRowId: number }
+    { type: 'PROGRESS', sheetId, rowsParsed: number, elapsedMs: number }
+    { type: 'WARNING', sheetId, message: string, sample?: string }
+    { type: 'DONE', sheetId, totalRows: number }
+    { type: 'ERROR', sheetId, error: string }
+    
+
+ 6.5 Storage Layout (Dexie)
+
+   DB name: csv-sheets
+   Tables:
+       sheets: { id: SheetId, name, headers, rowCount, colCount, createdAt }
+       blocks{SheetId} (dynamic or single blocks with sheetId): { sheetId, blockIndex, rows: string[][] }
+   Block size: 5,000 rows per block. Key = (sheetId, blockIndex).
+
+ 6.6 Data Access Adapter
+
+   Grid requests visible window → adapter resolves row range to blocks, overlays patches, applies sorts/filters (UI thread for small; worker/duckdb for large).
+   Keep an LRU cache of last N blocks in memory (e.g., 30 blocks ≈ 150k rows).
+
+ 6.7 Sorting & Filtering Strategy
+
+   Small mode (memory): in‑memory arrays with stable sort; filter via predicates.
+   Performance Mode (large):
+       Path A (default): incremental scan over blocks with predicate; maintain a virtual index of matching rowIds.
+       Path B (flagged): push down to DuckDB‑WASM using a temporary in‑memory table per sheet (only if RAM allows).
+
+  
+
+7) UI/UX Spec
+-------------
+
+ 7.1 Layout
+
+   Top Bar: Upload button, Drag‑drop hint, Search box, Edit Mode toggle, Export (Sheet, All), Reset Layout.
+   Left/Top Tabs: One per file; closable; unsaved edits badge.
+   Grid: Sticky header; optional row index column; per‑column menu (sort, filter, hide, move).
+   Right Panel (collapsible): Parse options, Warnings list, File stats.
+   Bottom Status Bar: Progress, rows/cols, perf mode indicator, memory estimate.
+
+ 7.2 Interactions
+
+   Column Reorder: drag header; visual drop cues; persists immediately.
+   Sort: click to toggle asc/desc/none; Shift+click to multi‑sort.
+   Filter: column menu opens type‑aware filter; Apply/Cancel; active filter chip shown in header.
+   Inline Edit: double‑click or Enter; press Enter to commit; Esc to revert. Dirty cell tinted.
+   Undo/Redo: Ctrl/Cmd+Z / Ctrl/Cmd+Y. Toolbar buttons too.
+   Export: dropdown: Export Sheet (CSV), Export All (ZIP); choose line endings.
+
+ 7.3 Empty/Edge States
+
+   No files: big dropzone with sample files hint.
+   Huge file: show "Performance Mode" banner with brief explanation.
+   Parse errors: toast + warning row with "Show details" opens panel.
+
+  
+
+8) Telemetry (Local Only)
+-------------------------
+
+   Collect and display (locally) parse duration, rows/sec, peak memory estimate. No network.
+   Optional toggle to print perf stats to console for debugging.
+
+  
+
+9) Accessibility
+----------------
+
+   All toolbar actions keyboard reachable.
+   Headers have aria-sort, menus have labels; focus outline visible.
+   Contrast ratio ≥ 4.5:1 for text in default theme.
+
+  
+
+10) Acceptance Criteria (v1)
+----------------------------
+
+1.  Upload 3 CSVs → 3 tabs, each previewing within 3s for first 50k rows.
+2.  Headers exactly match the file’s header row; duplicates display as‑is; internal keys deduped.
+3.  Column reorder via drag persists (per file) after page refresh.
+4.  Sorting and filtering work for string/numeric values; Shift+click multi‑sort works.
+5.  Inline cell edits show as dirty; Undo/Redo works; export applies edits.
+6.  Files with empty lines and ragged rows parse without crash; warnings visible.
+7.  1M×50 CSV keeps UI responsive; scrolling is smooth; operations don’t exceed memory guardrail; IndexedDB mode used automatically.
+8.  Export Sheet creates a CSV with current column order & visibility; Export All produces a ZIP.
+9.  No network requests are made during parse/edit/export.
+10.  Keyboard navigation + basic a11y validated.
+
+  
+
+11) QA Test Matrix
+------------------
+
+   Delimiters: comma/semicolon/tab/pipe; with/without quotes; embedded newlines; BOM UTF‑8.
+   Empty lines at start/middle/end; ragged rows (short & long).
+   Duplicate headers; header row index ≠ 1.
+   Large file smoke: 2,000,000 rows × 30 cols; filter + sort on 2 columns.
+   Undo/Redo across column reorder + edits + filter changes.
+   Export: verify round‑trip open in Excel/Numbers; line endings \n vs \r\n.
+
+  
+
+12) Risks & Mitigations
+-----------------------
+
+   Memory pressure on huge files → switch to IndexedDB early; block cache; avoid full arrays.
+   Slow filters on large data → build rowId index lazily; optional DuckDB path; pre‑tokenize text filters.
+   Safari IndexedDB quirks → feature detect; reduce block size; warn and fall back to smaller previews.
+   AG Grid performance → use row model optimized for virtualization; supply immutable data with rowId.
+
+  
+
+13) Delivery Plan (9 working days)
+----------------------------------
+
+   D1–D2: Uploader + parse worker + progressive preview + warnings.
+   D3–D4: Grid with column reorder/hide, sort/filter (basic), search.
+   D5: Inline editing + patch map + Undo/Redo.
+   D6: IndexedDB adapter + block cache + perf banner.
+   D7: Export sheet/ZIP + line ending option + layout persistence.
+   D8: A11y & keyboard + polish + empty/edge states.
+   D9: QA matrix run + perf tuning + docs.
+
+  
+
+14) Implementation Guide (Cursor‑ready)
+---------------------------------------
+
+ 14.1 Project Scaffolding
+
+    npm create vite@latest csv-sheets -- --template react-ts
+    cd csv-sheets && npm i ag-grid-community papaparse dexie jszip
+    npm i -D @types/jszip
+    
+
+ 14.2 Suggested Folder Structure
+
+    src/
+      app/
+        store.ts               // Zustand/RTK store (optional)
+        routes.tsx
+      components/
+        Uploader.tsx
+        SheetTabs.tsx
+        Toolbar.tsx
+        GridView.tsx
+        ColumnMenu.tsx
+        StatusBar.tsx
+        WarningsPanel.tsx
+      data/
+        adapters/
+          MemoryAdapter.ts
+          DexieAdapter.ts
+        models.ts              // types & interfaces
+        viewState.ts           // persist/reload view prefs
+      workers/
+        parser.worker.ts       // Papa Parse wrapper + protocol
+      utils/
+        fileHash.ts
+        csvExport.ts
+        detectDelimiter.ts
+        perf.ts
+      db/
+        dexie.ts               // schema + helpers
+    
+
+ 14.3 Key Interfaces
+
+    export interface IDataAdapter {
+      getRowCount(): Promise<number>;
+      getRows(range: {offset: number; limit: number}): Promise<{ rowId: RowId; cells: Cell[] }[]>;
+      scan(predicate?: (row: string[]) => boolean): AsyncGenerator<{ rowId: RowId; row: string[] }>;
+    }
+    
+
+ 14.4 Grid Integration (AG Grid)
+
+   Use small, to allow drag reorder.
+   Provide \\ = rowId.
+   Custom cell editor for string values (or default text editor).
+   Column defs derived from headers and columnOrder.
+
+ 14.5 Export Logic
+
+   For each visible row: merge original row (adapter) + patches → emit cells respecting columnOrder & visibility.
+   Stream to a Blob via generators to avoid large string concatenations.
+
+ 14.6 Performance Flags
+
+   PERFBLOCKSIZE=5000 rows; CACHEBLOCKS=30.
+   LARGEFILEROWTHRESHOLD=2000000; LARGEFILESIZEMB=200.
+
+  
+
+15) Cursor Rules (Prompts for AI Coder)
+---------------------------------------
+
+General Coding Style
+
+   Use TypeScript strict mode.
+   No any‑typed escape hatches; define interfaces for message payloads.
+   Keep UI responsive; never block main thread with large loops.
+
+When implementing workers
+
+   All parsing must run in parser.worker.ts. Communicate only via typed messages. Batch rows in blocks of 5k.
+
+When wiring AG Grid
+
+   Derive columnDefs from headers once; use columnApi.moveColumnByIndex for reorder persistence.
+   Ensure getRowId returns stable rowId.
+
+For IndexedDB adapter
+
+   Write and read row blocks atomically; guard against partial writes.
+
+For export
+
+   Stream CSV chunks; avoid building a multi‑hundred‑MB string in memory.
+
+Tests to Add
+
+   Unit: delimiter detection, ragged row padding, duplicate header dedupe.
+   Integration: parse→display→edit→export round‑trip.
+
+  
+
+16) Open Questions (to confirm later; sensible defaults used)
+-------------------------------------------------------------
+
+1.  Max file size/row count target beyond provided thresholds?
+2.  Do we need frozen columns in v1 (currently v1.1)?
+3.  Should we allow row add/delete (currently out of scope)?
+4.  Any domain‑specific validation rules to highlight (unique keys, required columns)?
+
+  
+
+17) Appendix A — Parser Worker Skeleton
+---------------------------------------
+
+    // workers/parser.worker.ts
+    import Papa from 'papaparse';
+    
+    self.onmessage = (e: MessageEvent) => {
+      const msg = e.data;
+      if (msg.type === 'PARSESTART') {
+        const { sheetId, file, options } = msg;
+        let rowId = 0;
+        Papa.parse(file, {
+          worker: true,
+          header: false,
+          skipEmptyLines: options.skipEmptyLines,
+          delimiter: options.delimiter || undefined,
+          encoding: options.encoding || undefined,
+          chunk: ({ data }: { data: string[][] }) => {
+            const rows: string[][] = data;
+            const start = rowId;
+            rowId += rows.length;
+            // postMessage in chunks
+            // @ts-ignore
+            postMessage({ type: 'CHUNK', sheetId, rows, startRowId: start });
+          },
+          complete: () => {
+            // @ts-ignore
+            postMessage({ type: 'DONE', sheetId, totalRows: rowId });
+          },
+          error: (error: any) => {
+            // @ts-ignore
+            postMessage({ type: 'ERROR', sheetId, error: String(error) });
+          }
+        });
+      }
+    };
+    
+
+18) Appendix B — Dexie Schema Sketch
+------------------------------------
+
+    // db/dexie.ts
+    import Dexie, { Table } from 'dexie';
+    
+    export interface SheetRowBlock { sheetId: string; blockIndex: number; rows: string[][]; }
+    export interface SheetRec { id: string; name: string; headers: string[]; rowCount: number; colCount: number; createdAt: number; }
+    
+    export class CSVDB extends Dexie {
+      sheets!: Table<SheetRec, string>;
+      blocks!: Table<SheetRowBlock, [string, number]>;
+      constructor() {
+        super('csv-sheets');
+        this.version(1).stores({
+          sheets: 'id',
+          blocks: '[sheetId+blockIndex]'
+        });
+      }
+    }
+    
+
+  
+
+End of PRD

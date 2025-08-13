@@ -1,0 +1,27 @@
+---
+description: Project Goal & Success Criteria (auto-include)
+alwaysApply: true
+---
+## PRD Compression & UI Output Generation
+
+Goal: Take the input PRD from `@knowledge-prd-input` and, using `@knowledge-prd-workflow.mdc`, create an improved PRD that uses less context space for LLM processing; then apply coding guidelines from `@knowledge-coding-guidelines.mdc` and design guidelines from `@knowledge-lovable.mdc` to generate three UI outputs.
+
+### Steps
+1. Load PRD from `@knowledge-prd-input`.
+2. Apply the PRD Workflow Knowledge Base (`@knowledge-prd-workflow.mdc`) to compress and reorganise the PRD into a structured, lower-token format while preserving acceptance criteria and traceability.
+3. Produce an Improved PRD artifact (store under `.taskmaster/docs/` or `requirements/<timestamp-slug>/`), including:
+   - Executive summary and scope boundaries
+   - Normalised requirements with acceptance criteria
+   - Open questions and assumptions
+4. Use `@knowledge-coding-guidelines.mdc` and `@knowledge-lovable.mdc` to generate the following three UI outputs:
+   - UI Output 1: Component and state catalogue (all screens, states, and interactions) aligned to Lovable patterns.
+   - UI Output 2: Implementation scaffolds (component/file skeletons) conforming to coding guidelines.
+   - UI Output 3: Preview harness (e.g., Storybook stories or equivalent) to review states and interactions.
+
+### Completion Criteria
+- Improved PRD is generated and demonstrably smaller in token footprint while retaining fidelity to `input/prd1.txt`.
+- Three UI outputs are created and reference the Improved PRD, coding guidelines, and design guidelines.
+- All artifacts are versioned and traceable to the original PRD and the questionnaire outputs.
+
+This goal applies to the entire workspace so that all agents understand the overarching objective and can coordinate accordingly.
+

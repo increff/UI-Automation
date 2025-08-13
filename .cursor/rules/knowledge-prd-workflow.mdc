@@ -1,0 +1,17 @@
+---
+description: PRD Workflow Knowledge Base (Memory Bank)
+globs:
+  - "cursor-ai-prd-workflow/**/*.md"
+alwaysApply: true
+---
+
+## PRD Workflow Knowledge Base
+
+Use the markdown files under `cursor-ai-prd-workflow/` as persistent reference material for PRD/RFC-driven development.
+
+- When creating or modifying PRDs, features, rules, RFCs, or implementation prompts, consult these docs first.
+- Follow the exact structures, sequences, and constraints defined in these files.
+- For implementation prompts, copy `cursor-ai-prd-workflow/implementation-prompt-template.md` and replace placeholders as instructed; do not alter other sections.
+
+If there is ambiguity between instructions, ask clarifying questions before proceeding.
+
