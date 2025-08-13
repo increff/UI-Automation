@@ -1,0 +1,89 @@
+{
+  "analysis": {
+    "features": [
+      "Role: Employee, Action: see a summary of my past expense reports and their current status (e",
+      "Role: Employee, Action: be able to create a new expense report for a specific time period or trip",
+      "Role: Employee, Action: add individual expense items to my report (e",
+      "Role: Employee, Action: be able to save my report as a draft and come back to it later",
+      "Role: Employee, Action: submit my completed report to my direct manager for approval",
+      "Role: Manager, Action: receive a notification when a team member submits an expense report",
+      "Role: Manager, Action: see a list of all pending reports from my team members that require my review",
+      "Role: Manager, Action: be able to view the full details of a submitted report, including all expense items and their attached receipts"
+    ],
+    "user_roles": [
+      "Document: Employee Expense Reporting Portal\n\n1",
+      "Employee: Any regular employee who incurs business-related expenses",
+      "Manager: An employee who has direct reports and is responsible for approving their expenses"
+    ],
+    "workflows": [
+      "be able to log in to the portal securely",
+      "see a summary of my past expense reports and their current status (e",
+      "be able to create a new expense report for a specific time period or trip",
+      "add individual expense items to my report (e",
+      "be able to enter a date, a description, an amount, and a category",
+      "be able to upload a digital copy of the receipt for each expense item",
+      "be able to save my report as a draft and come back to it later",
+      "submit my completed report to my direct manager for approval",
+      "receive a notification when a team member submits an expense report",
+      "see a list of all pending reports from my team members that require my review"
+    ],
+    "constraints": [
+      "be able to log in to the portal securely",
+      "be able to enter a date, a description, an amount, and a category",
+      "be able to upload a digital copy of the receipt for each expense item",
+      "be able to provide a reason"
+    ],
+    "ambiguities": []
+  },
+  "questions": [
+    {
+      "id": "FILE_001",
+      "category": "Data Management & Storage",
+      "type": "multiple_choice",
+      "question": "What file types should be supported for receipt uploads?",
+      "options": [
+        "Images (JPG, PNG)",
+        "PDFs only",
+        "Both images and PDFs",
+        "Any file type"
+      ],
+      "default": "Both images and PDFs",
+      "reasoning": "Receipts can be in various formats"
+    },
+    {
+      "id": "WORKFLOW_001",
+      "category": "User Experience & Workflow",
+      "type": "yes_no",
+      "question": "Should managers receive real-time notifications when reports are submitted?",
+      "default": "Yes",
+      "reasoning": "Critical for timely approval workflow"
+    },
+    {
+      "id": "MOBILE_001",
+      "category": "Mobile & Responsiveness",
+      "type": "yes_no",
+      "question": "Should the portal be optimized for mobile devices?",
+      "default": "Yes",
+      "reasoning": "Employees often submit expenses while traveling"
+    },
+    {
+      "id": "PERF_001",
+      "category": "Performance & Scalability",
+      "type": "scale",
+      "question": "What is the expected number of concurrent users?",
+      "options": [
+        "1-10",
+        "11-50",
+        "51-100",
+        "100+"
+      ],
+      "default": "11-50",
+      "reasoning": "Medium-sized company expense portal"
+    }
+  ],
+  "metadata": {
+    "prd_file": "my_prd.txt",
+    "generated_at": "2025-01-27T15:30:00Z",
+    "total_questions": 4
+  }
+}
