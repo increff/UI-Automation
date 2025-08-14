@@ -6,6 +6,8 @@ import Toolbar from './components/Toolbar'
 import GridView from './components/GridView'
 import StatusBar from './components/StatusBar'
 import WarningsPanel from './components/WarningsPanel'
+import { startParse } from './workers/parserClient'
+import { computeFileHash } from './utils/fileHash'
 
 function App() {
   const [tabs, setTabs] = useState<{ id: string; name: string; dirty?: boolean }[]>([])
@@ -15,10 +17,48 @@ function App() {
 
   const active = useMemo(() => tabs.find((t) => t.id === activeId), [tabs, activeId])
 
+  type SheetData = { headers: string[]; previewRows: string[][]; rowCount: number; warnings: string[] }
+  const [sheets, setSheets] = useState<Record<string, SheetData>>({})
+  const [, setProgress] = useState<Record<string, { rowsParsed: number; elapsedMs: number }>>({})
+
   const onFilesSelected = (files: File[]) => {
-    const newTabs = files.map((f) => ({ id: `${f.name}|${f.size}|${f.lastModified}`, name: f.name.replace(/\.[^/.]+$/, '') }))
+    const newTabs = files.map((f) => ({ id: computeFileHash(f), name: f.name.replace(/\.[^/.]+$/, '') }))
     setTabs((prev) => [...prev, ...newTabs])
     if (!activeId && newTabs[0]) setActiveId(newTabs[0].id)
+
+    for (const f of files) {
+      const id = computeFileHash(f)
+      startParse(
+        id,
+        f,
+        { headerRowIndex: 1, skipEmptyLines: true },
+        {
+          onMeta: ({ headers }) =>
+            setSheets((s) => ({ ...s, [id]: { headers, previewRows: [], rowCount: 0, warnings: [] } })),
+          onChunk: ({ rows }) =>
+            setSheets((s) => {
+              const prev = s[id]
+              const previewRows = prev?.previewRows ? prev.previewRows.slice() : []
+              if (previewRows.length < 1000) {
+                const toAdd = rows.slice(0, Math.max(0, 1000 - previewRows.length))
+                previewRows.push(...toAdd)
+              }
+              const rowCount = (prev?.rowCount ?? 0) + rows.length
+              const headers = prev?.headers ?? []
+              return { ...s, [id]: { headers, previewRows, rowCount, warnings: prev?.warnings ?? [] } }
+            }),
+          onProgress: ({ rowsParsed, elapsedMs }) =>
+            setProgress((p) => ({ ...p, [id]: { rowsParsed, elapsedMs } })),
+          onDone: ({ totalRows }) =>
+            setSheets((s) => {
+              const prev = s[id]
+              if (!prev) return s
+              return { ...s, [id]: { ...prev, rowCount: totalRows } }
+            }),
+          onError: ({ error }) => console.error('Parse error', error),
+        }
+      )
+    }
   }
 
   return (
@@ -38,10 +78,14 @@ function App() {
         onResetLayout={() => {}}
       />
       <main style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 12 }}>
-        <GridView headers={active ? ['Sample Header A', 'Sample Header B'] : []} rowCount={0} performanceMode={false} />
-        <WarningsPanel warnings={[]} headerRowIndex={1} skipEmptyLines={true} />
+        <GridView
+          headers={active && sheets[active.id] ? sheets[active.id]!.headers : []}
+          rows={active && sheets[active.id] ? sheets[active.id]!.previewRows : []}
+          performanceMode={false}
+        />
+        <WarningsPanel warnings={active && sheets[active.id] ? sheets[active.id]!.warnings : []} headerRowIndex={1} skipEmptyLines={true} />
       </main>
-      <StatusBar rows={0} cols={active ? 2 : 0} warningsCount={0} />
+      <StatusBar rows={active && sheets[active.id] ? sheets[active.id]!.rowCount : 0} cols={active && sheets[active.id] ? sheets[active.id]!.headers.length : 0} warningsCount={active && sheets[active.id] ? sheets[active.id]!.warnings.length : 0} />
     </div>
   )
 }
