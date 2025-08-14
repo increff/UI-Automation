@@ -8,6 +8,7 @@ import StatusBar from './components/StatusBar'
 import WarningsPanel from './components/WarningsPanel'
 import { startParse } from './workers/parserClient'
 import { computeFileHash } from './utils/fileHash'
+import { shouldUsePerformanceMode } from './utils/perf'
 
 function App() {
   const [tabs, setTabs] = useState<{ id: string; name: string; dirty?: boolean }[]>([])
@@ -17,7 +18,7 @@ function App() {
 
   const active = useMemo(() => tabs.find((t) => t.id === activeId), [tabs, activeId])
 
-  type SheetData = { headers: string[]; previewRows: string[][]; rowCount: number; warnings: string[] }
+  type SheetData = { headers: string[]; previewRows: string[][]; rowCount: number; warnings: string[]; performance: boolean }
   const [sheets, setSheets] = useState<Record<string, SheetData>>({})
   const [, setProgress] = useState<Record<string, { rowsParsed: number; elapsedMs: number }>>({})
 
@@ -34,7 +35,7 @@ function App() {
         { headerRowIndex: 1, skipEmptyLines: true },
         {
           onMeta: ({ headers }) =>
-            setSheets((s) => ({ ...s, [id]: { headers, previewRows: [], rowCount: 0, warnings: [] } })),
+            setSheets((s) => ({ ...s, [id]: { headers, previewRows: [], rowCount: 0, warnings: [], performance: shouldUsePerformanceMode({ fileSizeBytes: f.size }) } })),
           onChunk: ({ rows }) =>
             setSheets((s) => {
               const prev = s[id]
@@ -45,7 +46,8 @@ function App() {
               }
               const rowCount = (prev?.rowCount ?? 0) + rows.length
               const headers = prev?.headers ?? []
-              return { ...s, [id]: { headers, previewRows, rowCount, warnings: prev?.warnings ?? [] } }
+              const performance = prev?.performance ?? shouldUsePerformanceMode({ fileSizeBytes: f.size, totalRows: rowCount })
+              return { ...s, [id]: { headers, previewRows, rowCount, warnings: prev?.warnings ?? [], performance } }
             }),
           onProgress: ({ rowsParsed, elapsedMs }) =>
             setProgress((p) => ({ ...p, [id]: { rowsParsed, elapsedMs } })),
@@ -53,7 +55,8 @@ function App() {
             setSheets((s) => {
               const prev = s[id]
               if (!prev) return s
-              return { ...s, [id]: { ...prev, rowCount: totalRows } }
+              const performance = shouldUsePerformanceMode({ fileSizeBytes: f.size, totalRows })
+              return { ...s, [id]: { ...prev, rowCount: totalRows, performance } }
             }),
           onError: ({ error }) => console.error('Parse error', error),
         }
@@ -81,11 +84,11 @@ function App() {
         <GridView
           headers={active && sheets[active.id] ? sheets[active.id]!.headers : []}
           rows={active && sheets[active.id] ? sheets[active.id]!.previewRows : []}
-          performanceMode={false}
+          performanceMode={!!(active && sheets[active.id] && sheets[active.id]!.performance)}
         />
         <WarningsPanel warnings={active && sheets[active.id] ? sheets[active.id]!.warnings : []} headerRowIndex={1} skipEmptyLines={true} />
       </main>
-      <StatusBar rows={active && sheets[active.id] ? sheets[active.id]!.rowCount : 0} cols={active && sheets[active.id] ? sheets[active.id]!.headers.length : 0} warningsCount={active && sheets[active.id] ? sheets[active.id]!.warnings.length : 0} />
+      <StatusBar rows={active && sheets[active.id] ? sheets[active.id]!.rowCount : 0} cols={active && sheets[active.id] ? sheets[active.id]!.headers.length : 0} warningsCount={active && sheets[active.id] ? sheets[active.id]!.warnings.length : 0} performanceMode={!!(active && sheets[active.id] && sheets[active.id]!.performance)} />
     </div>
   )
 }
