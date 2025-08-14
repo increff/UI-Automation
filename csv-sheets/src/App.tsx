@@ -14,6 +14,7 @@ import { MemoryAdapter } from './data/adapters/MemoryAdapter'
 import type { IDataAdapter, PatchMap } from './data/models'
 import { exportSheetCSV } from './utils/csvExport'
 import { exportAllZip } from './utils/zipExport'
+import { applyCellPatch, createPatchMap, hasEdits } from './data/patches'
 
 function App() {
   const [tabs, setTabs] = useState<{ id: string; name: string; dirty?: boolean }[]>([])
@@ -27,7 +28,7 @@ function App() {
   const [sheets, setSheets] = useState<Record<string, SheetData>>({})
   const [, setProgress] = useState<Record<string, { rowsParsed: number; elapsedMs: number }>>({})
   const [adapters, setAdapters] = useState<Record<string, IDataAdapter>>({})
-  const [patches] = useState<Record<string, PatchMap>>({}) as any
+  const [patches, setPatches] = useState<Record<string, PatchMap>>({})
 
   const onFilesSelected = (files: File[]) => {
     const newTabs = files.map((f) => ({ id: computeFileHash(f), name: f.name.replace(/\.[^/.]+$/, '') }))
@@ -39,6 +40,7 @@ function App() {
       const perf = shouldUsePerformanceMode({ fileSizeBytes: f.size })
       const adapter: IDataAdapter = perf ? new DexieAdapter({ sheetId: id }) : new MemoryAdapter()
       setAdapters((a) => ({ ...a, [id]: adapter }))
+      setPatches((p) => ({ ...p, [id]: createPatchMap() }))
       startParse(
         id,
         f,
@@ -116,7 +118,7 @@ function App() {
               hidden: sheets[t.id]?.headers.map(() => false) ?? [],
               patches: (patches[t.id] ?? new Map()) as any,
               lineEnding: '\n' as const,
-              hasEdits: !!patches[t.id],
+              hasEdits: !!patches[t.id] && hasEdits(patches[t.id]!),
             }))
           const blob = await exportAllZip(list)
           const url = URL.createObjectURL(blob)
@@ -136,6 +138,17 @@ function App() {
           headers={active && sheets[active.id] ? sheets[active.id]!.headers : []}
           rows={active && sheets[active.id] ? sheets[active.id]!.previewRows : []}
           performanceMode={!!(active && sheets[active.id] && sheets[active.id]!.performance)}
+          onViewStateChange={() => {
+            if (!active) return
+            // Persist per-sheet view state (to be implemented)
+          }}
+          onEditCell={({ rowId, colIdx, value }) => {
+            if (!active) return
+            const m = patches[active.id]
+            if (!m) return
+            applyCellPatch(m, rowId, colIdx, value)
+            setTabs((ts) => ts.map((t) => (t.id === active.id ? { ...t, dirty: hasEdits(m) } : t)))
+          }}
         />
         <WarningsPanel warnings={active && sheets[active.id] ? sheets[active.id]!.warnings : []} headerRowIndex={1} skipEmptyLines={true} />
       </main>

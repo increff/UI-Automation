@@ -18,6 +18,8 @@ export interface ViewState {
   // FilterClause kept generic initially; refine when filters are implemented
   filters: Record<number, any[]>;
   density: 'compact' | 'cozy' | 'comfortable';
+  columnOrder: number[];
+  hidden: boolean[];
 }
 
 export type PatchMap = Map<RowId, Map<number, Cell>>;
