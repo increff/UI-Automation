@@ -6,9 +6,10 @@ export interface ToolbarProps {
   onExportSheet?: () => void;
   onExportAll?: () => void;
   onResetLayout?: () => void;
+  onClearSearch?: () => void;
 }
 
-export function Toolbar({ search, onSearchChange, editMode, onToggleEdit, onExportSheet, onExportAll, onResetLayout }: ToolbarProps) {
+export function Toolbar({ search, onSearchChange, editMode, onToggleEdit, onExportSheet, onExportAll, onResetLayout, onClearSearch }: ToolbarProps) {
   return (
     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
       <input
@@ -18,6 +19,9 @@ export function Toolbar({ search, onSearchChange, editMode, onToggleEdit, onExpo
         style={{ flex: 1, padding: '6px 8px' }}
         aria-label="Search"
       />
+      {search && (
+        <button onClick={onClearSearch} aria-label="Clear search">×</button>
+      )}
       <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         <input type="checkbox" checked={editMode} onChange={onToggleEdit} /> Edit Mode
       </label>

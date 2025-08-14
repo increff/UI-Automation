@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef } from 'ag-grid-community';
+import type { ViewState } from '../data/models';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
@@ -11,17 +12,23 @@ export interface GridViewProps {
   onViewStateChange?: (state: { columnOrder: number[]; hidden: boolean[]; sorts: Array<{ col: number; dir: 'asc' | 'desc' }>; filters: Record<number, any[]> }) => void;
   onEditCell?: (payload: { rowId: number; colIdx: number; value: string; oldValue?: string }) => void;
   registerUndoRedo?: (fns: { undo: () => void; redo: () => void }) => void;
+  editable?: boolean;
+  quickFilterText?: string;
+  initialViewState?: ViewState;
 }
 
-export function GridView({ headers, rows, performanceMode, onViewStateChange, onEditCell, registerUndoRedo }: GridViewProps) {
+export function GridView({ headers, rows, performanceMode, onViewStateChange, onEditCell, registerUndoRedo, editable = true, quickFilterText, initialViewState }: GridViewProps) {
   const columnDefs = useMemo<ColDef[]>(
     () =>
       headers.map((h, i) => ({
         headerName: h,
         field: `c${i}`,
-        editable: true,
+        editable,
+        filter: true,
+        sortable: true,
+        resizable: true,
       })),
-    [headers]
+    [headers, editable]
   );
   const rowData = useMemo(
     () =>
@@ -54,6 +61,7 @@ export function GridView({ headers, rows, performanceMode, onViewStateChange, on
       <AgGridReact
         rowData={rowData}
         columnDefs={columnDefs}
+        multiSortKey={'shift' as any}
         getRowId={(params) => String(params.data.id)}
         rowSelection="single"
         suppressContextMenu={true}
@@ -62,6 +70,26 @@ export function GridView({ headers, rows, performanceMode, onViewStateChange, on
         undoRedoCellEditing={true as any}
         undoRedoCellEditingLimit={100 as any}
         onGridReady={(e: any) => {
+          // Apply initial view state if provided
+          if (initialViewState) {
+            const colState = (initialViewState.columnOrder.length ? initialViewState.columnOrder : headers.map((_, i) => i)).map((idx) => {
+              const id = `c${idx}`;
+              const sortEntry = (initialViewState.sorts || []).find((s) => s.col === idx);
+              return {
+                colId: id,
+                sort: sortEntry?.dir,
+                hide: initialViewState.hidden?.[idx] ?? false,
+              };
+            });
+            const columnApi = e.columnApi ?? e.api;
+            if (columnApi?.applyColumnState) {
+              columnApi.applyColumnState({ state: colState, applyOrder: true });
+            }
+          }
+          if (quickFilterText) {
+            (e.api as any).setGridOption?.('quickFilterText', quickFilterText);
+            (e.api as any).setQuickFilter?.(quickFilterText);
+          }
           emitVS(e.api, e.columnApi ?? e.api);
           undoRef.current = () => (e.api as any).undoCellEditing?.();
           redoRef.current = () => (e.api as any).redoCellEditing?.();

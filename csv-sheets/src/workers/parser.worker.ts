@@ -39,6 +39,12 @@ self.onmessage = (e: MessageEvent<InMsg>) => {
       const data: string[][] = results.data as unknown as string[][];
       const detectedDelimiter = results.meta?.delimiter as string | undefined;
       const outRows: string[][] = [];
+      // Forward parse warnings from Papa
+      const parseErrors: any[] = (results as any).errors || [];
+      for (const err of parseErrors) {
+        // @ts-ignore
+        postMessage({ type: 'WARNING', sheetId, message: err.message || 'Parse warning', sample: err.row != null ? `row ${err.row}` : undefined });
+      }
       for (const row of data) {
         rowsSeen += 1;
         if (!headers && rowsSeen === options.headerRowIndex) {
@@ -52,6 +58,11 @@ self.onmessage = (e: MessageEvent<InMsg>) => {
           // Pad/truncate to header count; handle ragged rows per PRD
           const normalized = headers ? row.slice(0, headers.length) : row;
           while (headers && normalized.length < headers.length) normalized.push('');
+          if (headers && row.length > headers.length) {
+            // Extra fields beyond header count → warning with snippet
+            // @ts-ignore
+            postMessage({ type: 'WARNING', sheetId, message: `Extra fields beyond header count (+${row.length - headers.length})`, sample: row.join(detectedDelimiter || ',').slice(0, 120) });
+          }
           outRows.push(normalized);
         }
       }

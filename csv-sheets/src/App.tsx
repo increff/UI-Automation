@@ -74,6 +74,14 @@ function App() {
               if (!prev) return s
               return { ...s, [id]: { ...prev, rowCount: totalRows } }
             }),
+          onWarning: ({ message, sample }) =>
+            setSheets((s) => {
+              const prev = s[id]
+              if (!prev) return s
+              const warnings = prev.warnings.slice()
+              warnings.push(sample ? `${message}: ${sample}` : message)
+              return { ...s, [id]: { ...prev, warnings } }
+            }),
           onError: ({ error }) => console.error('Parse error', error),
         }
       )
@@ -92,6 +100,7 @@ function App() {
         onSearchChange={setSearch}
         editMode={editMode}
         onToggleEdit={() => setEditMode(!editMode)}
+        onClearSearch={() => setSearch('')}
         onExportSheet={async () => {
           if (!active) return
           const adapter = adapters[active.id]
@@ -139,6 +148,8 @@ function App() {
           headers={active && sheets[active.id] ? sheets[active.id]!.headers : []}
           rows={active && sheets[active.id] ? sheets[active.id]!.previewRows : []}
           performanceMode={!!(active && sheets[active.id] && sheets[active.id]!.performance)}
+          editable={editMode}
+          quickFilterText={search}
           onViewStateChange={(vs) => {
             if (!active) return
             const existing = loadViewState(active.id) || { density: 'cozy', sorts: [], filters: {}, columnOrder: [], hidden: [] }

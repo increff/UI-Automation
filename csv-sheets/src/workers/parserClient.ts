@@ -3,6 +3,7 @@ export type ParserHandlers = {
   onChunk?: (payload: { rows: string[][]; startRowId: number }) => void;
   onProgress?: (payload: { rowsParsed: number; elapsedMs: number }) => void;
   onDone?: (payload: { totalRows: number }) => void;
+  onWarning?: (payload: { message: string; sample?: string }) => void;
   onError?: (payload: { error: string }) => void;
 };
 
@@ -19,6 +20,9 @@ export function startParse(
     switch (msg.type) {
       case 'META':
         handlers.onMeta?.({ headers: msg.headers, detected: msg.detected });
+        break;
+      case 'WARNING':
+        handlers.onWarning?.({ message: msg.message, sample: msg.sample });
         break;
       case 'CHUNK':
         handlers.onChunk?.({ rows: msg.rows, startRowId: msg.startRowId });
