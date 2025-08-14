@@ -26,6 +26,9 @@ export interface IDataAdapter {
   getRowCount(): Promise<number>;
   getRows(range: { offset: number; limit: number }): Promise<{ rowId: RowId; cells: Cell[] }[]>;
   scan(predicate?: (row: string[]) => boolean): AsyncGenerator<{ rowId: RowId; row: string[] }>;
+  // Optional methods for streaming build-up and metadata
+  appendRows?(rows: string[][]): Promise<void> | void;
+  setHeaders?(headers: string[]): Promise<void> | void;
 }
 
 

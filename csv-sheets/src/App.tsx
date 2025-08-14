@@ -9,6 +9,11 @@ import WarningsPanel from './components/WarningsPanel'
 import { startParse } from './workers/parserClient'
 import { computeFileHash } from './utils/fileHash'
 import { shouldUsePerformanceMode } from './utils/perf'
+import { DexieAdapter } from './data/adapters/DexieAdapter'
+import { MemoryAdapter } from './data/adapters/MemoryAdapter'
+import type { IDataAdapter, PatchMap } from './data/models'
+import { exportSheetCSV } from './utils/csvExport'
+import { exportAllZip } from './utils/zipExport'
 
 function App() {
   const [tabs, setTabs] = useState<{ id: string; name: string; dirty?: boolean }[]>([])
@@ -21,6 +26,8 @@ function App() {
   type SheetData = { headers: string[]; previewRows: string[][]; rowCount: number; warnings: string[]; performance: boolean }
   const [sheets, setSheets] = useState<Record<string, SheetData>>({})
   const [, setProgress] = useState<Record<string, { rowsParsed: number; elapsedMs: number }>>({})
+  const [adapters, setAdapters] = useState<Record<string, IDataAdapter>>({})
+  const [patches] = useState<Record<string, PatchMap>>({}) as any
 
   const onFilesSelected = (files: File[]) => {
     const newTabs = files.map((f) => ({ id: computeFileHash(f), name: f.name.replace(/\.[^/.]+$/, '') }))
@@ -29,14 +36,20 @@ function App() {
 
     for (const f of files) {
       const id = computeFileHash(f)
+      const perf = shouldUsePerformanceMode({ fileSizeBytes: f.size })
+      const adapter: IDataAdapter = perf ? new DexieAdapter({ sheetId: id }) : new MemoryAdapter()
+      setAdapters((a) => ({ ...a, [id]: adapter }))
       startParse(
         id,
         f,
         { headerRowIndex: 1, skipEmptyLines: true },
         {
-          onMeta: ({ headers }) =>
-            setSheets((s) => ({ ...s, [id]: { headers, previewRows: [], rowCount: 0, warnings: [], performance: shouldUsePerformanceMode({ fileSizeBytes: f.size }) } })),
-          onChunk: ({ rows }) =>
+          onMeta: async ({ headers }) => {
+            if (adapter.setHeaders) await adapter.setHeaders(headers)
+            setSheets((s) => ({ ...s, [id]: { headers, previewRows: [], rowCount: 0, warnings: [], performance: perf } }))
+          },
+          onChunk: async ({ rows }) => {
+            if (adapter.appendRows) await adapter.appendRows(rows)
             setSheets((s) => {
               const prev = s[id]
               const previewRows = prev?.previewRows ? prev.previewRows.slice() : []
@@ -46,17 +59,17 @@ function App() {
               }
               const rowCount = (prev?.rowCount ?? 0) + rows.length
               const headers = prev?.headers ?? []
-              const performance = prev?.performance ?? shouldUsePerformanceMode({ fileSizeBytes: f.size, totalRows: rowCount })
+              const performance = prev?.performance ?? perf
               return { ...s, [id]: { headers, previewRows, rowCount, warnings: prev?.warnings ?? [], performance } }
-            }),
+            })
+          },
           onProgress: ({ rowsParsed, elapsedMs }) =>
             setProgress((p) => ({ ...p, [id]: { rowsParsed, elapsedMs } })),
           onDone: ({ totalRows }) =>
             setSheets((s) => {
               const prev = s[id]
               if (!prev) return s
-              const performance = shouldUsePerformanceMode({ fileSizeBytes: f.size, totalRows })
-              return { ...s, [id]: { ...prev, rowCount: totalRows, performance } }
+              return { ...s, [id]: { ...prev, rowCount: totalRows } }
             }),
           onError: ({ error }) => console.error('Parse error', error),
         }
@@ -76,9 +89,47 @@ function App() {
         onSearchChange={setSearch}
         editMode={editMode}
         onToggleEdit={() => setEditMode(!editMode)}
-        onExportSheet={() => {}}
-        onExportAll={() => {}}
-        onResetLayout={() => {}}
+        onExportSheet={async () => {
+          if (!active) return
+          const adapter = adapters[active.id]
+          if (!adapter) return
+          const blob = await exportSheetCSV(adapter, {
+            columnOrder: sheets[active.id]?.headers.map((_, i) => i) ?? [],
+            hidden: sheets[active.id]?.headers.map(() => false) ?? [],
+            patches: (patches[active.id] ?? new Map()) as any,
+            lineEnding: '\n',
+          })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `${active.name}.csv`
+          a.click()
+          URL.revokeObjectURL(url)
+        }}
+        onExportAll={async () => {
+          const list = tabs
+            .filter((t) => adapters[t.id])
+            .map((t) => ({
+              name: t.name,
+              adapter: adapters[t.id]!,
+              columnOrder: sheets[t.id]?.headers.map((_, i) => i) ?? [],
+              hidden: sheets[t.id]?.headers.map(() => false) ?? [],
+              patches: (patches[t.id] ?? new Map()) as any,
+              lineEnding: '\n' as const,
+              hasEdits: !!patches[t.id],
+            }))
+          const blob = await exportAllZip(list)
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `all-sheets.zip`
+          a.click()
+          URL.revokeObjectURL(url)
+        }}
+        onResetLayout={() => {
+          // placeholder; view state persistence to be wired to Grid events
+          // would clear localStorage for the active sheet id
+        }}
       />
       <main style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 12 }}>
         <GridView
