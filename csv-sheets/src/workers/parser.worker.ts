@@ -49,7 +49,10 @@ self.onmessage = (e: MessageEvent<InMsg>) => {
             metaSent = true;
           }
         } else if (headers) {
-          outRows.push(row);
+          // Pad/truncate to header count; handle ragged rows per PRD
+          const normalized = headers ? row.slice(0, headers.length) : row;
+          while (headers && normalized.length < headers.length) normalized.push('');
+          outRows.push(normalized);
         }
       }
       if (outRows.length > 0) {

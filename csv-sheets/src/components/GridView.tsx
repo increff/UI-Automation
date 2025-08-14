@@ -58,6 +58,7 @@ export function GridView({ headers, rows, performanceMode, onViewStateChange, on
         rowSelection="single"
         suppressContextMenu={true}
         animateRows={true}
+        theme={"legacy" as any}
         undoRedoCellEditing={true as any}
         undoRedoCellEditingLimit={100 as any}
         onGridReady={(e: any) => {
