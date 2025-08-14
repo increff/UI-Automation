@@ -15,6 +15,7 @@ import type { IDataAdapter, PatchMap } from './data/models'
 import { exportSheetCSV } from './utils/csvExport'
 import { exportAllZip } from './utils/zipExport'
 import { applyCellPatch, createPatchMap, hasEdits } from './data/patches'
+import { loadViewState, saveViewState, resetViewState } from './data/viewState'
 
 function App() {
   const [tabs, setTabs] = useState<{ id: string; name: string; dirty?: boolean }[]>([])
@@ -129,8 +130,8 @@ function App() {
           URL.revokeObjectURL(url)
         }}
         onResetLayout={() => {
-          // placeholder; view state persistence to be wired to Grid events
-          // would clear localStorage for the active sheet id
+          if (!active) return
+          resetViewState(active.id)
         }}
       />
       <main style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 12 }}>
@@ -138,9 +139,10 @@ function App() {
           headers={active && sheets[active.id] ? sheets[active.id]!.headers : []}
           rows={active && sheets[active.id] ? sheets[active.id]!.previewRows : []}
           performanceMode={!!(active && sheets[active.id] && sheets[active.id]!.performance)}
-          onViewStateChange={() => {
+          onViewStateChange={(vs) => {
             if (!active) return
-            // Persist per-sheet view state (to be implemented)
+            const existing = loadViewState(active.id) || { density: 'cozy', sorts: [], filters: {}, columnOrder: [], hidden: [] }
+            saveViewState(active.id, { ...existing, ...vs })
           }}
           onEditCell={({ rowId, colIdx, value }) => {
             if (!active) return
